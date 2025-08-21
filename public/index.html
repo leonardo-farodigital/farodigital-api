@@ -95,11 +95,12 @@
     const kdm = document.getElementById("kdm").checked;
 
     const payload = { service, minutes, variant, kdm };
-    const res = await fetch("/quote", {
+    const res = await fetch("/api/quote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
+
 
     const out = document.getElementById("quoteOut");
     if (!res.ok) {
