@@ -1,0 +1,35 @@
+{
+  "moneda": "CLP",
+  "observaciones_generales": [
+    "Todos los valores son NETOS (+ IVA).",
+    "Plazos y entregables sujetos a revisión técnica del material."
+  ],
+  "color": { "jornada": 650000 },
+  "dcp": {
+    "0-15":   { "creacion": 145000,  "clon": 125000 },
+    "15-45":  { "creacion": 520000,  "clon": 15000 },
+    "45-90":  { "creacion": 900000,  "clon": 48000 },
+    "90-120": { "creacion": 1350000, "clon": 95000 }
+  },
+  "copias": {
+    "0-15":   { "unitario": 45000,  "volumen": 65000 },
+    "15-45":  { "unitario": 85000,  "volumen": 20000 },
+    "45-90":  { "unitario": 120000, "volumen": 30000 },
+    "90-120": { "unitario": 150000, "volumen": 45000 }
+  },
+  "redes": {
+    "instagram": { "planA": 400000, "planB": 460000 },
+    "anuncios": {
+      "metaAds": 170000,
+      "googleAds": 150000,
+      "ambos": 250000,
+      "inversion_sugerida": 300000
+    },
+    "identidad": { "paquete": 140000 }
+  },
+  "vfx": {
+    "nota": "VFX/Post: se cotiza por shot o paquete (composición, animaciones 2D/3D, rotoscopía, sonido, música)."
+  }
+}
+
+

@@ -1,268 +1,196 @@
-// ===== FARO Digital - Pricing API (Node+Express / CommonJS) =====
+// server.js — FARO DIGITAL (API + Chat pruebas)
 const express = require('express');
-const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const CHAT_TEST_PASSWORD = process.env.CHAT_TEST_PASSWORD || 'faro-test';
 
-app.use(cors());
+// ===== Middlewares =====
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static('public'));
 
-// ---------- Helpers ----------
-function asInt(n) {
-  const v = parseInt(n, 10);
-  return Number.isNaN(v) ? null : v;
-}
-function pickTierByMax(tiers, minutes) {
-  return tiers.find(t => minutes <= t.max) || null;
-}
-function sendJSON(req, res, obj) {
-  if (String(req.query.pretty || '') === '1') {
-    res.set('Content-Type', 'application/json; charset=utf-8');
-    return res.send(JSON.stringify(obj, null, 2));
-  }
-  return res.json(obj);
-}
-function waTextFrom(payload) {
-  const lines = [];
-  if (payload.servicio) lines.push(`FARO Digital • ${payload.servicio}`);
-  if (payload.duracion_min) lines.push(`Duración: ${payload.duracion_min} min`);
-  if (payload.rango) lines.push(`Rango: ${payload.rango}`);
-  if (payload.tarifa_clp) lines.push(`Tarifa: $${payload.tarifa_clp.toLocaleString('es-CL')}`);
-  if (payload.precio_neto_clp) lines.push(`Precio: $${payload.precio_neto_clp.toLocaleString('es-CL')}`);
-  if (payload.precio_volumen_clp) lines.push(`Volumen: $${payload.precio_volumen_clp.toLocaleString('es-CL')}`);
-  if (payload.jornadas) lines.push(`Jornadas: ${payload.jornadas}`);
-  if (payload.total_clp) lines.push(`Total: $${payload.total_clp.toLocaleString('es-CL')}`);
-  if (payload.notas) lines.push(`Notas: ${payload.notas}`);
-  const msg = lines.join('\n');
-  return `https://wa.me/?text=${encodeURIComponent(msg)}`;
+// ===== Cargar tarifario =====
+const preciosPath = path.join(__dirname, 'data', 'servicios.json');
+let KNOW = {};
+try {
+  KNOW = JSON.parse(fs.readFileSync(preciosPath, 'utf-8'));
+  console.log('📦 Tarifario cargado:', preciosPath);
+} catch (e) {
+  console.warn('⚠️ No pude leer data/servicios.json:', e.message);
+  KNOW = {};
 }
 
-// ===================================================================
-//                        TABLAS DE PRECIOS (CLP)
-// ===================================================================
+// Utilidades
+const fCLP = (n) =>
+  new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(Number(n || 0));
 
-// DCP — desde tu PDF
-const DCP_TIERS = [
-  { max: 15,  creacion: 145000,  clon: 125000,  label: '0–15 min'  },
-  { max: 45,  creacion: 520000,  clon: 15000,   label: '15–45 min' },
-  { max: 90,  creacion: 900000,  clon: 48000,   label: '45–90 min' },
-  { max: 120, creacion: 1350000, clon: 95000,   label: '90–120 min'}
-];
-
-// Copias para TV/Agencias (MOV/MXF/XDCAM) — desde tu tabla de Canal
-const CANAL_TIERS = [
-  { max: 15,  copia: 45000,  volumen: 65000,  label: '0–15 min'  },
-  { max: 45,  copia: 85000,  volumen: 20000,  label: '15–45 min' },
-  { max: 90,  copia: 120000, volumen: 30000,  label: '45–90 min' },
-  { max: 120, copia: 150000, volumen: 45000,  label: '90–120 min'}
-];
-
-// Redes / Identidad (referenciales)
-const REDES_PLANS = {
-  instagram_mensual: {
-    nombre: 'Plan Instagram Mensual (12 publicaciones)',
-    incluye: [
-      'Diseño / redacción',
-      'Programación',
-      'Interacción básica',
-      'Reporte mensual'
-    ],
-    tarifa: 460000
-  }
-};
-const IDENTIDAD_MARCA = {
-  nombre: 'Identidad de Marca (entrega PDF)',
-  incluye: ['Análisis', 'Buyer persona', 'Tono + estilo', 'Ejemplos y plantillas'],
-  tarifa: 140000
+const pickRange = (min) => {
+  const m = Number(min || 0);
+  if (m <= 15) return '0-15';
+  if (m <= 45) return '15-45';
+  if (m <= 90) return '45-90';
+  return '90-120';
 };
 
-// VFX (referencial por plano)
-const VFX_TIERS = [
-  { key: 'basico',     por_plano: 60000,   desc: 'Limpieza/retouch simple' },
-  { key: 'intermedio', por_plano: 120000,  desc: 'Track/replace pantalla u objetos simples' },
-  { key: 'avanzado',   por_plano: 250000,  desc: 'Composición avanzada/roto/tracking complejo' }
-];
+const withNotes = (texto) => {
+  const notas = KNOW?.observaciones_generales || [];
+  const pie = notas.length ? `\n\nNotas: ${notas.join(' · ')}` : '';
+  return texto + pie;
+};
 
-// **COLOR** — precio fijo por jornada (lo que pediste)
-const COLOR_JORNADA_CLP = 650000;
-
-// ===================================================================
-//                              RUTAS
-// ===================================================================
-
-app.get('/', (_req, res) => {
-  res.type('text/plain').send('Servidor FARO Digital activo 🚀  Usa /help para rutas.');
-});
-
+// ===== Rutas básicas =====
+app.get('/', (_req, res) => res.send('Servidor FARO Digital activo 🚀 Usa /help para rutas.'));
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'farodigital-api' }));
 app.get('/help', (_req, res) => {
-  res.type('text/plain').send(
-`Rutas principales:
-/cotizar/dcp/:min                            -> Ej: /cotizar/dcp/60
-/cotizar/canal/:formato/:min                -> formato: mxf | mov | xdcam (Ej: /cotizar/canal/mxf/30)
-Alias:
-/cotizacion?tipo=dcp&duracion=60            -> (o tipo=mxf|mov|xdcam)
-/cotizacion-dcp?duracion=60
-/cotizacion-canal?formato=mxf&minutos=45
-
-Servicios comerciales:
-/cotizar/redes/instagram_mensual
-/cotizar/identidad-marca
-/cotizar/vfx?tipo=intermedio&planos=3
-/cotizar/color/:jornadas                    -> Ej: /cotizar/color/2  (2 jornadas x $650.000)
-
-Tip: añade ?pretty=1 para ver JSON legible.`
-  );
-});
-
-// ----------------- DCP -----------------
-app.get('/cotizar/dcp/:min', (req, res) => {
-  const min = asInt(req.params.min);
-  const tipo = String(req.query.tipo || 'creacion').toLowerCase(); // 'creacion' | 'clon'
-  if (!min || min <= 0) return res.status(400).json({ error: 'Duración inválida (>0).' });
-  if (min > 120) return res.status(404).json({ error: 'Fuera de rango (1–120 min).' });
-
-  const tier = pickTierByMax(DCP_TIERS, min);
-  const isClon = tipo === 'clon';
-  const payload = {
-    servicio: isClon ? 'Clonación DCP' : 'Creación DCP',
-    duracion_min: min,
-    rango: tier.label,
-    tarifa_clp: isClon ? tier.clon : tier.creacion,
-    notas: 'Valores referenciales; pueden variar por specs exactas (resolución, audio, QC, urgencia).'
-  };
-  payload.wa_text = waTextFrom(payload);
-  return sendJSON(req, res, payload);
-});
-
-// -------- Copias para Canal (MXF/MOV/XDCAM) --------
-app.get('/cotizar/canal/:formato/:min', (req, res) => {
-  const formato = String(req.params.formato || '').toLowerCase();
-  const min = asInt(req.params.min);
-  if (!['mxf','mov','xdcam'].includes(formato)) {
-    return res.status(400).json({ error: 'Formato inválido. Usa: mxf | mov | xdcam' });
-  }
-  if (!min || min <= 0) return res.status(400).json({ error: 'Duración inválida (>0).' });
-  if (min > 120) return res.status(404).json({ error: 'Fuera de rango (1–120 min).' });
-
-  const tier = pickTierByMax(CANAL_TIERS, min);
-  const payload = {
-    servicio: `Archivo ${formato.toUpperCase()} (TV/Agencias)`,
-    duracion_min: min,
-    rango: tier.label,
-    precio_neto_clp: tier.copia,
-    precio_volumen_clp: tier.volumen,
-    notas: 'Mismo valor para MOV/MXF/XDCAM. Puede variar por specs de canal y QC.'
-  };
-  payload.wa_text = waTextFrom(payload);
-  return sendJSON(req, res, payload);
-});
-
-// ----------------- ALIAS (query, sin regex) -----------------
-app.get('/cotizacion', (req, res) => {
-  const tipo = String(req.query.tipo || '').toLowerCase();
-  const min  = asInt(req.query.duracion);
-  if (!tipo || !min) {
-    return res.status(400).json({ error: 'Faltan parámetros. Usa: /cotizacion?tipo=dcp&duracion=60 ó tipo=mxf|mov|xdcam' });
-  }
-  if (tipo === 'dcp') return res.redirect(302, `/cotizar/dcp/${min}`);
-  if (['mxf','mov','xdcam'].includes(tipo)) return res.redirect(302, `/cotizar/canal/${tipo}/${min}`);
-  return res.status(400).json({ error: 'tipo inválido. Usa: dcp | mxf | mov | xdcam' });
-});
-
-app.get('/cotizacion-dcp', (req, res) => {
-  const min = asInt(req.query.duracion);
-  if (!min) return res.status(400).json({ error: 'Falta o inválida la duración. Ej: /cotizacion-dcp?duracion=60' });
-  return res.redirect(302, `/cotizar/dcp/${min}`);
-});
-
-app.get('/cotizacion-canal', (req, res) => {
-  const fmt = String(req.query.formato || '').toLowerCase();
-  const min = asInt(req.query.minutos);
-  if (!fmt || !min) return res.status(400).json({ error: 'Faltan parámetros. Ej: /cotizacion-canal?formato=mxf&minutos=45' });
-  if (!['mxf','mov','xdcam'].includes(fmt)) return res.status(400).json({ error: 'formato inválido. Usa: mxf | mov | xdcam' });
-  return res.redirect(302, `/cotizar/canal/${fmt}/${min}`);
-});
-
-// ----------------- Redes Sociales -----------------
-app.get('/cotizar/redes/instagram_mensual', (req, res) => {
-  const plan = REDES_PLANS.instagram_mensual;
-  const payload = {
-    servicio: plan.nombre,
-    incluye: plan.incluye,
-    tarifa_clp: plan.tarifa,
-    notas: 'Precio neto referencial; se ajusta por alcance, urgencias o extras.'
-  };
-  return sendJSON(req, res, payload);
-});
-
-// ----------------- Identidad de Marca -----------------
-app.get('/cotizar/identidad-marca', (req, res) => {
-  const payload = {
-    servicio: IDENTIDAD_MARCA.nombre,
-    incluye: IDENTIDAD_MARCA.incluye,
-    tarifa_clp: IDENTIDAD_MARCA.tarifa,
-    notas: 'Alcance ajustable según requerimientos. Entrega en PDF.'
-  };
-  return sendJSON(req, res, payload);
-});
-
-// ----------------- VFX -----------------
-app.get('/cotizar/vfx', (req, res) => {
-  const tipo = String(req.query.tipo || 'basico').toLowerCase(); // basico|intermedio|avanzado
-  const planos = asInt(req.query.planos || '1') || 1;
-  const tier = VFX_TIERS.find(t => t.key === tipo) || VFX_TIERS[0];
-  const total = tier.por_plano * planos;
-
-  const payload = {
-    servicio: `VFX ${tier.key}`,
-    descripcion: tier.desc,
-    planos,
-    tarifa_unitaria_clp: tier.por_plano,
-    total_clp: total,
-    notas: 'Estimación referencial por plano. Requiere revisar material para cotización definitiva.'
-  };
-  return sendJSON(req, res, payload);
-});
-
-// ----------------- COLOR (650.000 por jornada) -----------------
-app.get('/cotizar/color/:jornadas', (req, res) => {
-  const jornadas = asInt(req.params.jornadas);
-  if (!jornadas || jornadas <= 0) {
-    return res.status(400).json({ error: 'Número de jornadas inválido (>0). Ej: /cotizar/color/2' });
-  }
-  const total = COLOR_JORNADA_CLP * jornadas;
-  const payload = {
-    servicio: 'Color grading',
-    jornadas,
-    tarifa_por_jornada_clp: COLOR_JORNADA_CLP,
-    total_clp: total,
-    notas: 'Valor por jornada. Puede variar por complejidad, conformado, entregables y urgencias.'
-  };
-  payload.wa_text = waTextFrom(payload);
-  return sendJSON(req, res, payload);
-});
-
-// ----------------- 404 amigable -----------------
-app.use((_req, res) => {
-  res.status(404).json({
-    error: 'Ruta no encontrada. Revisa /help',
-    ejemplos: [
-      '/cotizar/dcp/60',
-      '/cotizar/canal/mxf/30',
-      '/cotizacion?tipo=dcp&duracion=45',
-      '/cotizacion-canal?formato=mov&minutos=20',
-      '/cotizar/redes/instagram_mensual',
-      '/cotizar/identidad-marca',
-      '/cotizar/vfx?tipo=intermedio&planos=3',
-      '/cotizar/color/2'
-    ]
+  res.json({
+    routes: {
+      '/chat.html': 'Interfaz de pruebas (protegida con clave)',
+      'GET /health': 'Estado',
+      'GET /cotizacion?tipo=dcp|mxf|mov|xdcam&duracion=MIN': 'Redirige a detalle',
+      'GET /cotizar/dcp/:min': 'DCP por minutos',
+      'GET /cotizar/:formato/:min': 'Copias mxf/mov/xdcam por minutos',
+      'POST /api/chat { message }': 'Chat (requiere header x-chat-pass)'
+    }
   });
 });
 
-// ----------------- Start -----------------
-app.listen(PORT, () => {
-  console.log(`✅ Servidor FARO Digital iniciado en http://localhost:${PORT}`);
+// ===== Guard sencillo (clave de pruebas) =====
+function guard(req, res, next) {
+  const pass = req.headers['x-chat-pass'];
+  if (pass !== CHAT_TEST_PASSWORD) return res.sendStatus(401);
+  next();
+}
+app.get('/api/ping', guard, (_req, res) => res.json({ ok: true }));
+
+// ===== Cotizaciones =====
+function quoteDCP(min) {
+  const r = pickRange(min);
+  const t = KNOW?.dcp?.[r];
+  if (!t) return { error: 'Sin datos de DCP para ese rango.' };
+  return {
+    rango: r,
+    creacion: t.creacion,
+    clon: t.clon,
+    texto: withNotes(`🎬 DCP ${r} min\n- Creación: ${fCLP(t.creacion)}\n- Clon: ${fCLP(t.clon)}`)
+  };
+}
+
+function quoteCopia(formato = 'mxf', min) {
+  const r = pickRange(min);
+  const t = KNOW?.copias?.[r];
+  if (!t) return { error: 'Sin datos de copias para ese rango.' };
+  const fmt = String(formato).toUpperCase();
+  return {
+    formato: fmt,
+    rango: r,
+    unitario: t.unitario,
+    volumen: t.volumen,
+    texto: withNotes(`📀 Copia ${fmt} ${r} min\n- Unitario: ${fCLP(t.unitario)}\n- Volumen: ${fCLP(t.volumen)}`)
+  };
+}
+
+function quoteColor() {
+  const j = KNOW?.color?.jornada;
+  if (!j) return { error: 'Sin datos de Corrección de Color.' };
+  return { texto: withNotes(`🎨 Corrección de color (jornada): ${fCLP(j)}`) };
+}
+
+function quoteRedes() {
+  const ig = KNOW?.redes?.instagram || {};
+  const an = KNOW?.redes?.anuncios || {};
+  const id = KNOW?.redes?.identidad || {};
+  const texto = [
+    `📱 Instagram:\n- Plan A (8 posts): ${fCLP(ig.planA)}\n- Plan B (12 posts): ${fCLP(ig.planB)}`,
+    `📢 Anuncios:\n- Meta Ads: ${fCLP(an.metaAds)}\n- Google Ads: ${fCLP(an.googleAds)}\n- Ambos: ${fCLP(an.ambos)}\n- Inversión sugerida aparte: ${fCLP(an.inversion_sugerida)}`,
+    `🎯 Identidad de marca: ${fCLP(id.paquete)}`
+  ].join('\n\n');
+  return { texto: withNotes(texto) };
+}
+
+function quoteVFX() {
+  const nota = KNOW?.vfx?.nota || 'VFX/Post a cotizar por shot o paquete.';
+  return { texto: withNotes(`✨ ${nota}`) };
+}
+
+// Redirecciones rápidas
+app.get('/cotizacion', (req, res) => {
+  const { tipo, duracion } = req.query;
+  const min = parseInt(duracion, 10);
+  if (!tipo || Number.isNaN(min)) return res.status(400).json({ error: 'Usa: /cotizacion?tipo=dcp|mxf|mov|xdcam&duracion=MIN' });
+  const t = String(tipo).toLowerCase();
+  if (t === 'dcp') return res.redirect(302, `/cotizar/dcp/${min}`);
+  if (['mxf', 'mov', 'xdcam'].includes(t)) return res.redirect(302, `/cotizar/${t}/${min}`);
+  return res.status(400).json({ error: 'Tipo no soportado. Usa dcp, mxf, mov o xdcam.' });
 });
 
+app.get('/cotizar/dcp/:min', (req, res) => {
+  const q = quoteDCP(Number(req.params.min));
+  if (q.error) return res.status(400).json(q);
+  res.json(q);
+});
 
+app.get('/cotizar/:formato/:min', (req, res) => {
+  const q = quoteCopia(req.params.formato, Number(req.params.min));
+  if (q.error) return res.status(400).json(q);
+  res.json(q);
+});
+
+// ===== Chat con reglas + fallback a OpenAI =====
+app.post('/api/chat', guard, async (req, res) => {
+  try {
+    const text = String(req.body?.message || '').trim().toLowerCase();
+
+    // DCP con minutos
+    let m = text.match(/dcp.*?(\d{1,3})\s*(min|mins|minutos)?/);
+    if (m) return res.json({ reply: quoteDCP(Number(m[1])).texto });
+
+    // Copias formato + minutos
+    m = text.match(/\b(mxf|mov|xdcam)\b.*?(\d{1,3})\s*(min|mins|minutos)?/);
+    if (m) return res.json({ reply: quoteCopia(m[1], Number(m[2])).texto });
+
+    // Color
+    if (/\bcorrecci[oó]n de color\b|\bcolor(ist[ao])?\b/.test(text))
+      return res.json({ reply: quoteColor().texto });
+
+    // Redes / Anuncios / Identidad
+    if (/instagram|redes|anuncio|ads|google|meta|identidad/.test(text))
+      return res.json({ reply: quoteRedes().texto });
+
+    // VFX/Post
+    if (/vfx|postproducci[oó]n|composici[oó]n|rotoscop|animaci[oó]n|sonido|m[uú]sica/.test(text))
+      return res.json({ reply: quoteVFX().texto });
+
+    // Fallback OpenAI (con tarifario como contexto)
+    if (!OPENAI_API_KEY) {
+      return res.json({ reply: 'Falta OPENAI_API_KEY para respuestas conversacionales. Puedo dar precios si me das formato/duración.' });
+    }
+    const sys = [
+      'Eres el agente de Faro Digital. Responde breve, claro y comercial.',
+      'Siempre en CLP y + IVA salvo indicación contraria.',
+      `TARIFARIO JSON:\n${JSON.stringify(KNOW)}`
+    ].join('\n');
+
+    const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        temperature: 0.3,
+        messages: [{ role: 'system', content: sys }, { role: 'user', content: req.body?.message || '' }]
+      })
+    });
+    const data = await resp.json();
+    const reply = data?.choices?.[0]?.message?.content?.trim() || 'Sin respuesta por ahora.';
+    res.json({ reply });
+  } catch (err) {
+    console.error('AI/chat error', err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+// ===== Arranque =====
+app.listen(PORT, () => console.log(`✅ FARO Digital API escuchando en :${PORT}`));
