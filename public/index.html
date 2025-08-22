@@ -1,44 +1,64 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
   <title>Faro Digital - Cotizador</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 28px; }
+    button { margin-right: 8px; }
+    pre { background:#f7f7f7; padding:12px; border-radius:6px; }
+  </style>
 </head>
 <body>
   <h1>Bienvenido al Cotizador de Faro Digital</h1>
   <p>Haz clic en un botón para probar una cotización:</p>
 
-  <button onclick="cotizar('dcp', 20)">Cotizar DCP (20 min)</button>
-  <button onclick="cotizar('copia', 45)">Cotizar Copia Canal (45 min)</button>
-  <button onclick="cotizar('color', 1)">Cotizar Color (1 jornada)</button>
+  <div>
+    <button id="btnDcp">Cotizar DCP (20 min)</button>
+    <button id="btnMov">Cotizar Copia Canal (45 min)</button>
+    <button id="btnColor">Cotizar Color (1 jornada)</button>
+  </div>
 
-  <h2>Resultado:</h2>
-  <pre id="resultado"></pre>
+  <h3>Resultado:</h3>
+  <pre id="out"></pre>
 
-<script>
-  // Utilidad para mostrar resultados
-  function show(text) {
-    const el = document.getElementById('output') || document.getElementById('result') || document.getElementById('Resultado') || document.querySelector('#resultado, #output, #result') || (function(){
-      const d=document.createElement('pre'); d.id='output'; document.body.appendChild(d); return d;
-    })();
-    el.textContent = text;
-  }
+  <script>
+    const out = document.getElementById('out');
 
-  // Llamador genérico: pide el endpoint del backend y muestra el texto
-  async function cotizar(path) {
-    try {
-      const res = await fetch(path, { headers: { 'Accept': 'text/plain,application/json' }});
-      const text = await res.text();     // el backend devuelve texto con el detalle
-      show(text);
-    } catch (e) {
-      show('Error: ' + (e?.message || e));
+    async function pedir(url) {
+      out.textContent = 'Consultando…';
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          out.textContent = `Error: ${res.status} ${res.statusText}`;
+          return;
+        }
+        // Estas rutas devuelven JSON con { texto: "..." } o directamente el objeto de cotización.
+        const data = await res.json();
+        // Si viene con campo "texto" lo mostramos, si no, mostramos el JSON formateado.
+        out.textContent = data.texto ? data.texto : JSON.stringify(data, null, 2);
+      } catch (e) {
+        out.textContent = 'Error de red: ' + e.message;
+      }
     }
-  }
 
-  // Botones de prueba rápida (usa tus rutas que ya comprobamos que funcionan)
-  document.getElementById('btnDcp')?.addEventListener('click', () => cotizar('/cotizar/dcp/20'));
-  document.getElementById('btnCanal')?.addEventListener('click', () => cotizar('/cotizar/mxf/45'));
-  document.getElementById('btnColor')?.addEventListener('click', () => cotizar('/cotizar/color/1'));
-</script>
+    // RUTAS CORRECTAS DEL BACKEND:
+    //  - /cotizar/dcp/:min
+    //  - /cotizar/mov/:min    (MXF/XDCAM/MOV – copia canal)
+    //  - /cotizar/color/1     (jornada de color)
+
+    document.getElementById('btnDcp').addEventListener('click', () => {
+      pedir('/cotizar/dcp/20');
+    });
+
+    document.getElementById('btnMov').addEventListener('click', () => {
+      pedir('/cotizar/mov/45');
+    });
+
+    document.getElementById('btnColor').addEventListener('click', () => {
+      pedir('/cotizar/color/1');
+    });
+  </script>
+</body>
+</html>
 
