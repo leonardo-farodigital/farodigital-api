@@ -16,17 +16,53 @@
   <h2>Resultado:</h2>
   <pre id="resultado"></pre>
 
-  <script>
-    async function cotizar(tipo, duracion) {
-      try {
-        const res = await fetch(`/api/quote?tipo=${tipo}&duracion=${duracion}`);
-        const data = await res.json();
-        document.getElementById("resultado").textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        document.getElementById("resultado").textContent = "Error: " + err.message;
+<script>
+  // Elementos de salida
+  const out = document.getElementById('quoteOut') || document.getElementById('resultado') || document.querySelector('#resultado, #quoteOut');
+
+  function setOut(msg) {
+    if (!out) return;
+    out.textContent = msg;
+  }
+
+  async function fetchQuote(url) {
+    try {
+      setOut('Cargando…');
+      const res = await fetch(url, { headers: { 'Accept': 'application/json' }});
+      const ct = (res.headers.get('content-type') || '').toLowerCase();
+
+      // Si vino HTML/Texto, mostramos error legible
+      if (!ct.includes('application/json')) {
+        const txt = await res.text();
+        setOut(`Error: la ruta devolvió contenido no-JSON.\nURL: ${url}\n---\n${txt.slice(0, 200)}…`);
+        return;
       }
+
+      const data = await res.json();
+      // Si tu API entrega { texto: "..." } úsalo, si no armamos algo simple
+      const texto = data?.texto ||
+        JSON.stringify(data, null, 2);
+
+      setOut(texto);
+    } catch (err) {
+      setOut(`Error: ${err.message}`);
     }
-  </script>
-</body>
-</html>
+  }
+
+  // Botones de prueba (ajusta las rutas si tu API usa otros nombres)
+  // Confirmado: /cotizar/dcp/20 funciona
+  document.getElementById('btnDcp')?.addEventListener('click', () => {
+    fetchQuote('/cotizar/dcp/20');
+  });
+
+  // Si tu backend usa /cotizar/mxf/45 (o /cotizar/canal/45) cambia aquí:
+  document.getElementById('btnCanal')?.addEventListener('click', () => {
+    fetchQuote('/cotizar/mxf/45');  // ← cámbialo a la ruta correcta si fuese distinto
+  });
+
+  // Para color por jornada: si tu backend expone /cotizar/color/1 (o similar) ajústalo:
+  document.getElementById('btnColor')?.addEventListener('click', () => {
+    fetchQuote('/cotizar/color/1'); // ← ajusta si es otro slug
+  });
+</script>
 
