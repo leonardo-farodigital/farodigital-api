@@ -1,64 +1,255 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <title>Faro Digital - Cotizador</title>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 28px; }
-    button { margin-right: 8px; }
-    pre { background:#f7f7f7; padding:12px; border-radius:6px; }
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>FARO Digital — Cotizador</title>
+<link rel="icon" href="/img/Logo_Faro_youtube.png" />
+<style>
+  :root{
+    --bg:#0f1620; --panel:#1b2430; --muted:#9fb0c3; --txt:#e8f0fb;
+    --primary:#2ea3ff; --chip:#263244; --btn:#208cff; --btn2:#0c6dd8;
+    --mono: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Helvetica,Arial}
+  .wrap{max-width:1150px;margin:28px auto;display:grid;grid-template-columns:1fr 420px;gap:22px;padding:0 16px}
+  .card{background:var(--panel);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:22px}
+  header{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+  header img{height:100px} /* logo 100px */
+  h1{font-size:22px;margin:0}
+  .sub{color:var(--muted);font-size:12px}
+  label{display:block;margin:14px 0 6px 0;font-weight:600}
+  select{background:#0c1520;border:1px solid #2b3a4f;color:var(--txt);padding:8px 10px;border-radius:8px}
+  .row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  button.primary{background:var(--btn);border:0;color:#fff;border-radius:9px;padding:8px 12px;font-weight:700;cursor:pointer}
+  button.primary:hover{background:var(--btn2)}
+  .chips{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+  .chip{background:#0c1520;color:#cfe3ff;border:1px dashed #3a4b63;border-radius:999px;padding:8px 12px;cursor:pointer;font-size:14px}
+  #resultado{white-space:pre-line;background:#0c1520;border:1px solid #2b3a4f;border-radius:12px;padding:14px 16px;font-family:var(--mono);min-height:150px}
+  small.note{display:block;color:#a8b7c8;margin-top:10px;font-size:12px}
+  .muted{color:#a8b7c8}
+
+  /* Chat */
+  .chat{display:flex;flex-direction:column;height:620px}
+  .chathead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .bubble{background:#132033;border:1px solid #283b52;border-radius:12px;padding:12px;margin:8px 0}
+  .you{background:#0a3f7a;border-color:#17508f}
+  .sendrow{display:flex;gap:8px;align-items:center}
+  .input{flex:1;background:#0c1520;border:1px solid #2b3a4f;color:#e8f0fb;border-radius:10px;padding:10px}
+  .btn-ghost{background:#233246;border:1px solid #3a4b63;color:#d8e8ff;border-radius:9px;padding:8px 12px;cursor:pointer}
+  .btn-ghost:hover{background:#293c54}
+  .hint{font-size:12px;color:#9fb0c3}
+</style>
 </head>
 <body>
-  <h1>Bienvenido al Cotizador de Faro Digital</h1>
-  <p>Haz clic en un botón para probar una cotización:</p>
+  <div class="wrap">
+    <!-- IZQUIERDA: Cotizador -->
+    <section class="card">
+      <header>
+        <img src="/img/Logo_Faro_youtube.png" alt="FARO Digital Logo"/>
+        <div>
+          <h1>FARO Digital — Cotizador</h1>
+          <div class="sub">Precios oficiales e instantáneos · <a href="mailto:leonardo@farodigital.cl" style="color:#9fd3ff">leonardo@farodigital.cl</a> · +56 9 74534012</div>
+        </div>
+      </header>
 
-  <div>
-    <button id="btnDcp">Cotizar DCP (20 min)</button>
-    <button id="btnMov">Cotizar Copia Canal (45 min)</button>
-    <button id="btnColor">Cotizar Color (1 jornada)</button>
+      <div class="row">
+        <div>
+          <label>Duración DCP:</label>
+          <select id="dcpRange">
+            <option value="0-15">0 – 15 min</option>
+            <option value="15-45">15 – 45 min</option>
+            <option value="45-90">45 – 90 min</option>
+            <option value="90-120">90 – 120 min</option>
+          </select>
+          <button id="btnDcp" class="primary">Cotizar DCP</button>
+        </div>
+
+        <div>
+          <label>Duración Canal:</label>
+          <select id="canalRange">
+            <option value="0-15">0 – 15 min</option>
+            <option value="15-45">15 – 45 min</option>
+            <option value="45-90">45 – 90 min</option>
+            <option value="90-120">90 – 120 min</option>
+          </select>
+          <button id="btnCanal" class="primary">Cotizar Copia Canal</button>
+        </div>
+
+        <div>
+          <label>Corrección de Color:</label>
+          <div class="row">
+            <button id="btnColor" class="primary">Cotizar</button>
+            <span class="muted">Precio fijo: <b id="precioColorFijo">$650.000</b> por jornada</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chips">
+        <span class="chip" data-sec="redes">Redes sociales (referencial)</span>
+        <span class="chip" data-sec="anuncios">Anuncios (referencial)</span>
+        <span class="chip" data-sec="identidad">Identidad de marca (referencial)</span>
+        <span class="chip" data-sec="vfx">VFX/Post (referencial)</span>
+      </div>
+
+      <h3>Resultado</h3>
+      <div id="resultado">—</div>
+      <small class="note">* Servicios referenciales dependen del requerimiento de cada cliente. Valores NETOS (+ IVA). Plazos y entregables sujetos a revisión técnica del material.</small>
+    </section>
+
+    <!-- DERECHA: Chat / Asistente -->
+    <section class="card chat">
+      <div class="chathead">
+        <b>Asistente (agente de ventas)</b>
+        <div style="display:flex;gap:8px">
+          <button id="btnFeedback" class="btn-ghost" title="Dejar feedback">📝 Dejar feedback</button>
+          <button id="btnReset" class="btn-ghost">Reiniciar chat</button>
+        </div>
+      </div>
+
+      <div id="chatlog" style="overflow:auto;flex:1">
+        <div class="bubble">Hola, soy el asistente de Faro Digital 👋 ¿En qué te puedo ayudar?</div>
+        <div class="bubble" style="opacity:.8">Si quieres, dime tu nombre para personalizar la ayuda.</div>
+      </div>
+
+      <div class="sendrow" style="margin-top:8px">
+        <input id="chatInput" class="input" placeholder='ej: "hola, soy Ana y quiero un logo"'>
+        <button id="chatSend" class="primary">Enviar</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="btnEmail" class="btn-ghost">✉️ Enviar correo</button>
+        <button id="btnWA" class="btn-ghost">🟩 WhatsApp</button>
+        <button id="startNew" class="btn-ghost" style="margin-left:auto;border-color:#2bd184">Iniciar nueva conversación</button>
+      </div>
+      <div class="hint" style="margin-top:6px">Tip: presiona <b>Enter</b> para enviar. Escribe <b>"nuevo"</b> para comenzar otra conversación.</div>
+    </section>
   </div>
 
-  <h3>Resultado:</h3>
-  <pre id="out"></pre>
+<script>
+// ====== Utilidades ======
+const $ = (s) => document.querySelector(s);
+const sCLP = (n) => new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',maximumFractionDigits:0}).format(n);
 
-  <script>
-    const out = document.getElementById('out');
+// ====== Cotizadores ======
+async function cotizarDcp(){
+  const r = $('#dcpRange').value;
+  const j = await fetch(`/api/dcp?range=${encodeURIComponent(r)}`).then(x=>x.json()).catch(()=>({ok:false}));
+  if(!j.ok){ $('#resultado').textContent = 'Error en DCP'; return; }
+  $('#resultado').textContent =
+`🎬 DCP ${r.replace('-','–')} min
+– Creación: ${j.creacion_fmt}
+– Clon: ${j.clon_fmt}
 
-    async function pedir(url) {
-      out.textContent = 'Consultando…';
-      try {
-        const res = await fetch(url);
-        if (!res.ok) {
-          out.textContent = `Error: ${res.status} ${res.statusText}`;
-          return;
-        }
-        // Estas rutas devuelven JSON con { texto: "..." } o directamente el objeto de cotización.
-        const data = await res.json();
-        // Si viene con campo "texto" lo mostramos, si no, mostramos el JSON formateado.
-        out.textContent = data.texto ? data.texto : JSON.stringify(data, null, 2);
-      } catch (e) {
-        out.textContent = 'Error de red: ' + e.message;
-      }
-    }
+Notas: Valores NETOS (+ IVA). Plazos y entregables sujetos a revisión técnica del material.`;
+}
+async function cotizarCanal(){
+  const r = $('#canalRange').value;
+  const j = await fetch(`/api/copia-canal?range=${encodeURIComponent(r)}`).then(x=>x.json()).catch(()=>({ok:false}));
+  if(!j.ok){ $('#resultado').textContent = 'Error en Copia Canal'; return; }
+  $('#resultado').textContent =
+`📼 Copia Canal ${r.replace('-','–')} min
+– Precio: ${j.precio_fmt}
 
-    // RUTAS CORRECTAS DEL BACKEND:
-    //  - /cotizar/dcp/:min
-    //  - /cotizar/mov/:min    (MXF/XDCAM/MOV – copia canal)
-    //  - /cotizar/color/1     (jornada de color)
+Notas: Valores NETOS (+ IVA). Plazos y entregables sujetos a revisión técnica del material.`;
+}
+async function verColor(){
+  const j = await fetch('/api/color').then(x=>x.json()).catch(()=>({ok:false}));
+  if(!j.ok){ $('#resultado').textContent = 'Error en Color'; return; }
+  $('#resultado').textContent =
+`🎨 Corrección de Color (por jornada)
+– Precio: ${j.precio_fmt}
 
-    document.getElementById('btnDcp').addEventListener('click', () => {
-      pedir('/cotizar/dcp/20');
-    });
+Notas: Valores NETOS (+ IVA). Plazos y entregables sujetos a revisión técnica del material.`;
+  $('#precioColorFijo').textContent = j.precio_fmt;
+}
+async function verRef(sec){
+  const j = await fetch(`/api/ref?sec=${encodeURIComponent(sec)}`).then(x=>x.json()).catch(()=>({ok:false}));
+  if(!j.ok){ $('#resultado').textContent = 'Sección no disponible'; return; }
+  $('#resultado').textContent = j.texto;
+}
 
-    document.getElementById('btnMov').addEventListener('click', () => {
-      pedir('/cotizar/mov/45');
-    });
+$('#btnDcp').onclick = cotizarDcp;
+$('#btnCanal').onclick = cotizarCanal;
+$('#btnColor').onclick = verColor;
+document.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => verRef(ch.dataset.sec)));
+verColor();
 
-    document.getElementById('btnColor').addEventListener('click', () => {
-      pedir('/cotizar/color/1');
-    });
-  </script>
+// ====== Chat (estable) ======
+function addBubble(txt, me=false){
+  const d=document.createElement('div');
+  d.className='bubble'+(me?' you':'');
+  d.textContent=txt;
+  $('#chatlog').appendChild(d);
+  $('#chatlog').scrollTop = $('#chatlog').scrollHeight;
+}
+function resetChat(){
+  $('#chatlog').innerHTML='';
+  addBubble('Hola, soy el asistente de Faro Digital 👋 ¿En qué te puedo ayudar?');
+  addBubble('Si quieres, dime tu nombre para personalizar la ayuda.');
+}
+resetChat();
+
+function handleMsg(msg){
+  const t = msg.toLowerCase();
+
+  // nombre
+  const m = t.match(/\bsoy\s+([a-záéíóúñ]+)/i);
+  if(m){ addBubble(`¡Encantado, ${m[1][0].toUpperCase()+m[1].slice(1)}! ¿Qué servicio te interesa cotizar? (DCP / Copia Canal / Color / Redes / Anuncios / Identidad / VFX)`); return; }
+
+  // no catalogado
+  if (/(stream|streaming|transmisión|transmision|grabación|grabacion|fotos|fotografía|fotografia)/.test(t)) {
+    addBubble('Ese servicio no está en nuestro catálogo. Si nos dejas un correo o teléfono, te contactamos para ayudarte o derivarte con un ejecutivo.');
+    return;
+  }
+
+  // servicios
+  if (/dcp/.test(t)) { addBubble('Para DCP usa el cotizador de la izquierda eligiendo la duración. Si gustas, déjanos tu correo para enviarte la propuesta.'); return; }
+  if (/(copia.*canal|canal|broadcast|tv)/.test(t)) { addBubble('Para Copia Canal usa el cotizador de la izquierda y elige la duración. Puedo enviarte el detalle por correo.'); return; }
+  if (/color|corrección|correccion/.test(t)) { addBubble('Color tiene precio fijo por jornada. Presiona “Cotizar” a la izquierda y te mostramos el valor.'); return; }
+  if (/red(es)?|instagram|tiktok|youtube|social/.test(t)) { addBubble('Redes Sociales: valores referenciales según plataforma/alcance. ¿Correo o teléfono para enviarte propuesta?'); return; }
+  if (/anuncio|spot|publicidad|ads?/.test(t)) { addBubble('Anuncios: valores referenciales según guion/equipo/rodaje. ¿Correo o teléfono para enviarte propuesta?'); return; }
+  if (/identidad|logo|branding|marca/.test(t)) { addBubble('Identidad de marca: referencial (naming/logo/brand-kit). ¿Correo o teléfono para enviarte propuesta?'); return; }
+  if (/vfx|post|postproducción|postproduccion|compositing/.test(t)) { addBubble('VFX/Post: por plano y complejidad. ¿Correo o teléfono para enviarte propuesta?'); return; }
+
+  // contacto
+  if (/\b[\w._%+-]+@[\w.-]+\.[a-z]{2,}\b/i.test(t) || /\+\d[\d\s-]{6,}/.test(t)) {
+    addBubble('✅ ¡Listo! Ya tengo tu contacto. En breve un ejecutivo de FARO Digital se comunicará contigo. ¡Gracias por preferirnos! 🙌');
+    addBubble('Gracias por contactarnos. Si necesitas asistencia inmediata, escríbenos a leonardo@farodigital.cl o llámanos al +56 9 74534012.');
+    addBubble('Conversación finalizada ✅. Escribe "nuevo" o usa "Iniciar nueva conversación".');
+    return;
+  }
+
+  // saludo
+  if (/(hola|buenas|buenos días|buenas tardes|buenas noches)/i.test(t)) {
+    addBubble('¡Hola! ¿Qué servicio te interesa cotizar? (DCP / Copia Canal / Color / Redes / Anuncios / Identidad / VFX)');
+    return;
+  }
+
+  // fallback
+  addBubble('No entendí bien 🤔. ¿Podrías indicar tu nombre ("hola, soy …") o el servicio que quieres cotizar?');
+}
+$('#chatSend').onclick = () => {
+  const v = $('#chatInput').value.trim();
+  if(!v) return;
+  addBubble(v, true);
+  $('#chatInput').value='';
+  if(v.toLowerCase()==='nuevo'){ resetChat(); return; }
+  handleMsg(v);
+};
+$('#chatInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter'){ e.preventDefault(); $('#chatSend').click(); }
+});
+$('#btnReset').onclick = resetChat;
+$('#startNew').onclick = resetChat;
+
+// Accesos rápidos
+$('#btnEmail').onclick = ()=>window.location.href='mailto:leonardo@farodigital.cl';
+$('#btnWA').onclick   = ()=>window.open('https://wa.me/56974534012','_blank');
+
+// FEEDBACK (Google Form)
+$('#btnFeedback').onclick = () =>
+  window.open('https://docs.google.com/forms/d/e/1FAIpQLSeM5cnP6LEcsh8xQNRyNX_hFIBsaESfXBQJu67_YE7DkGIqYg/viewform?usp=dialog', '_blank');
+</script>
 </body>
 </html>
 

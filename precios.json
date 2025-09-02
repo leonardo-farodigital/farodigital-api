@@ -1,0 +1,19 @@
+{
+  "dcp": [
+    {
+      "rango": "15-45",
+      "creacion": 520000,
+      "clon": 15000,
+      "texto": "🎬 DCP 15-45 min\n Creación: $520.000\n Clon: $15.000\n\nNotas: Todos los valores son NETOS (+ IVA). · Plazos y entregables sujetos a revisión técnica del material."
+    }
+  ],
+  "mxf": [
+    {
+      "rango": "cualquiera",
+      "creacion": 350000,
+      "texto": "📀 MXF/XDCAM\n Creación: $350.000\n\nNotas: Todos los valores son NETOS (+ IVA). · Plazos y entregables sujetos a revisión técnica del material."
+    }
+  ]
+}
+
+
