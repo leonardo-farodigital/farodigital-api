@@ -1,12 +1,12 @@
-node_modules
-.env
+# dependencias y sistema
+node_modules/
 .DS_Store
-node_modules
+
+# backups y archivos locales
+public/index.backup.html
+server.backup.js
+data/*.csv
+
+# env
 .env
-.DS_Store
-.env
 node_modules
-.DS_Store
-.env
-node_modules
-.DS_Store

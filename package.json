@@ -1,7 +1,7 @@
 {
-  "name": "faro-digital",
+  "name": "faro-digital-cotizador",
   "version": "1.0.0",
-  "description": "Cotizador y asistente de Faro Digital",
+  "description": "Cotizador y asistente de ventas de FARO Digital",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -10,6 +10,9 @@
     "express": "^4.18.2"
   },
   "engines": {
-    "node": ">=18"
-  }
+    "node": ">=18.x"
+  },
+  "author": "FARO Digital",
+  "license": "MIT"
 }
+
