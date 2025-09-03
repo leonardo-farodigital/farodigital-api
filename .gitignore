@@ -10,3 +10,10 @@ data/*.csv
 # env
 .env
 node_modules
+node_modules/
+.DS_Store
+api/
+data/leads.csv
+feedback.json
+public/index.backup.html
+backup-farodigital-api.git/
